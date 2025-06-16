@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Anti-Forensics in the Wild - BSides Brasília</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a40 50%, #2d1b69 100%);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .presentation-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .slide {
+            min-height: 100vh;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 40px;
+            position: relative;
+            animation: slideIn 0.8s ease-out;
+        }
+
+        .slide.active {
+            display: flex;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide h1 {
+            font-size: 3.5em;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+        }
+
+        .slide h2 {
+            font-size: 2.5em;
+            margin-bottom: 25px;
+            color: #00ff88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .slide h3 {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #00ccff;
+        }
+
+        .slide p, .slide li {
+            font-size: 1.3em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            max-width: 900px;
+        }
+
+        .slide ul {
+            text-align: left;
+            max-width: 800px;
+        }
+
+        .slide li {
+            margin-bottom: 20px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .slide li::before {
+            content: "▶";
+            color: #00ff88;
+            position: absolute;
+            left: 0;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: rgba(0, 255, 136, 0.2);
+            border: 2px solid #00ff88;
+            color: #00ff88;
+            padding: 12px 25px;
+            cursor: pointer;
+            border-radius: 25px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn:hover {
+            background: rgba(0, 255, 136, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .slide-counter {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid #00ff88;
+            font-size: 1.1em;
+            backdrop-filter: blur(10px);
+        }
+
+        .evidence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            max-width: 1000px;
+        }
+
+        .evidence-card {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .evidence-card:hover {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+            transform: translateY(-5px);
+        }
+
+        .timeline {
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid #00ff88;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: left;
+            max-width: 900px;
+        }
+
+        .timeline-item {
+            margin-bottom: 15px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .timeline-item::before {
+            content: "●";
+            color: #00ff88;
+            font-size: 1.5em;
+            position: absolute;
+            left: -15px;
+            top: -5px;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ccff;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            text-align: left;
+            margin: 20px 0;
+            color: #00ccff;
+            max-width: 800px;
+        }
+
+        .highlight {
+            background: linear-gradient(45deg, rgba(255, 0, 100, 0.3), rgba(255, 100, 0, 0.3));
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .demo-section {
+            background: rgba(255, 0, 100, 0.1);
+            border: 2px solid #ff0064;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            max-width: 800px;
+        }
+
+        .interactive-element {
+            background: rgba(0, 204, 255, 0.2);
+            border: 2px solid #00ccff;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .interactive-element:hover {
+            background: rgba(0, 204, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 204, 255, 0.5);
+        }
+
+        .author-info {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            font-size: 1em;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .bsides-logo {
+            position: fixed;
+            top: 30px;
+            left: 30px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div class="matrix-bg" id="matrixBg"></div>
+    <div class="bsides-logo">BSides Brasília 2025</div>
+    <div class="slide-counter">
+        <span id="currentSlide">1</span> / <span id="totalSlides">12</span>
+    </div>
+    <div class="author-info">Carla Cristina Oliveira Vieira | USC Digital Forensics</div>
+
+    <div class="presentation-container">
+        <!-- Slide 1: Title -->
+        <div class="slide active">
+            <h1>Advanced Anti-Forensics in the Wild</h1>
+            <h3>Real-World Case Study: When Criminals Fight Back</h3>
+            <p style="font-size: 1.5em; margin-top: 40px;">A deep dive into sophisticated data destruction, steganography, and encryption techniques discovered in an actual drug trafficking investigation</p>
+            <div style="margin-top: 50px; font-style: italic; color: #00ccff;">
+                "The best forensic cases are the ones where the suspect knows what they're doing"
+            </div>
+        </div>
+
+        <!-- Slide 2: The Reality Check -->
+        <div class="slide">
+            <h2>The Game Has Changed</h2>
+            <div class="evidence-grid">
+                <div class="evidence-card">
+                    <h3>💾 Data Destruction</h3>
+                    <p>Complete partition wiping, CCleaner abuse, and diskWiper.dll deployment</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>🔐 Encryption</h3>
+                    <p>TrueCrypt hidden volumes with plausible deniability</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>🖼️ Steganography</h3>
+                    <p>Images hiding images, encrypted with custom passwords</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>🌐 Secure Communications</h3>
+                    <p>ProtonMail, Discord, virtual machines</p>
+                </div>
+            </div>
+            <p style="margin-top: 30px; font-size: 1.4em;">Modern criminals aren't just tech-savvy anymore – <span class="highlight">they're digital forensics aware</span></p>
+        </div>
+
+        <!-- Slide 3: The Case -->
+        <div class="slide">
+            <h2>Operation: "Steve_K"</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
+                <div>
+                    <h3>The Setup</h3>
+                    <ul>
+                        <li>International drug trafficking operation</li>
+                        <li>1kg methamphetamine intercepted at Wellington Airport</li>
+                        <li>Desktop computer seized from 666 Rewera Avenue, Petone</li>
+                        <li>User "Steve" with extensive anti-forensic preparations</li>
+                    </ul>
+                </div>
+                <div class="demo-section">
+                    <h3>The Challenge</h3>
+                    <p>How do you investigate a suspect who actively tries to defeat your investigation?</p>
+                    <div class="code-block">
+Volume 8: ZEROED OUT
+CCleaner: 11 manual launches
+diskWiper.dll: 8 executions
+TrueCrypt: Hidden volume attempt
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Anti-Forensic Arsenal -->
+        <div class="slide">
+            <h2>The Anti-Forensic Arsenal</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <strong>Data Destruction:</strong> CCleaner + diskWiper.dll combination for secure deletion
+                </div>
+                <div class="timeline-item">
+                    <strong>Encryption:</strong> TrueCrypt for hidden volumes (plausible deniability)
+                </div>
+                <div class="timeline-item">
+                    <strong>Steganography:</strong> Image Steganography 1.5.2 to hide evidence in plain sight
+                </div>
+                <div class="timeline-item">
+                    <strong>Virtualization:</strong> VMware environments to isolate activities
+                </div>
+                <div class="timeline-item">
+                    <strong>Secure Communications:</strong> ProtonMail + Discord for encrypted channels
+                </div>
+                <div class="timeline-item">
+                    <strong>External Storage:</strong> 1TB+ drives for data exfiltration before wiping
+                </div>
+            </div>
+            <p style="color: #ff0064; font-size: 1.3em; margin-top: 20px;">This isn't script kiddie behavior – this is <span class="highlight">operational security</span></p>
+        </div>
+
+        <!-- Slide 5: The Steganography Discovery -->
+        <div class="slide">
+            <h2>Breaking the Steganography</h2>
+            <div class="interactive-element" onclick="toggleStegoDemo()">
+                <h3>🔍 Click to reveal the hidden evidence</h3>
+                <div id="stegoDemo" style="display: none;">
+                    <div class="code-block">
+File: BNE.png (4.3MB - suspiciously large)
+Tool: Image Steganography 1.5.2
+Password: "Elchapo2" (found in plaintext logs!)
+Hidden: package.jpg (criminal evidence)
+                    </div>
+                    <p style="color: #00ff88;">The password was recovered from binary logs - even sophisticated criminals make mistakes!</p>
+                </div>
+            </div>
+            <div class="evidence-grid">
+                <div class="evidence-card">
+                    <h3>The Discovery Process</h3>
+                    <p>Keyword search "steganography" → Binary logs → Password in plaintext → Hidden image revealed</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>The Irony</h3>
+                    <p>Sophisticated steganography defeated by poor operational security in logging</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Digital Breadcrumbs -->
+        <div class="slide">
+            <h2>Digital Breadcrumbs: What Survives Deletion</h2>
+            <ul style="font-size: 1.2em;">
+                <li><strong>ShellBag Artifacts:</strong> Folder navigation history revealed external drive usage during data destruction window</li>
+                <li><strong>USB Device Logs:</strong> Western Digital Elements + Seagate Backup drives connected during critical timeframe</li>
+                <li><strong>Web Download History:</strong> Anti-forensic tool acquisition timeline perfectly preserved</li>
+                <li><strong>Discord Cache:</strong> Message drafts discussing steganography and delivery locations</li>
+                <li><strong>Registry Artifacts:</strong> ProtonMail username cached in webform data</li>
+                <li><strong>Unallocated Space:</strong> "Secret" file with password hints recovered after deletion</li>
+            </ul>
+            <div class="demo-section" style="margin-top: 30px;">
+                <p><strong>Key Insight:</strong> Even with extensive anti-forensic measures, <span class="highlight">metadata tells the story</span></p>
+            </div>
+        </div>
+
+        <!-- Slide 7: Timeline Reconstruction -->
+        <div class="slide">
+            <h2>Reconstructing the Criminal Timeline</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <strong>Jan 28-29:</strong> Research phase - "cutting drugs", "drug routes wellington", "money laundering"
+                </div>
+                <div class="timeline-item">
+                    <strong>Jan 30:</strong> Tool acquisition - TrueCrypt download, ProtonMail account creation, CCleaner installation
+                </div>
+                <div class="timeline-item">
+                    <strong>Jan 31:</strong> Route planning - Google Maps searches, screenshot captures of delivery routes
+                </div>
+                <div class="timeline-item">
+                    <strong>Feb 1:</strong> Steganography implementation - BNE.png received, Image Steganography downloaded
+                </div>
+                <div class="timeline-item">
+                    <strong>Feb 2:</strong> Final preparations - Location research, evidence destruction, Discord coordination
+                </div>
+            </div>
+            <p style="font-size: 1.3em; color: #00ccff; margin-top: 20px;">5 days from research to execution - this was a <span class="highlight">planned operation</span></p>
+        </div>
+
+        <!-- Slide 8: The Geographic Intelligence -->
+        <div class="slide">
+            <h2>Geographic Intelligence</h2>
+            <div class="evidence-grid">
+                <div class="evidence-card">
+                    <h3>📍 Primary Location</h3>
+                    <p><strong>Eastbourne Library</strong><br>
+                    Multiple searches, Google Maps screenshots, Discord references</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>🏠 Backup Location</h3>
+                    <p><strong>666 Rewera Avenue, Petone</strong><br>
+                    Mentioned in Discord drafts, matches seizure location</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>✈️ Airport Route</h3>
+                    <p><strong>Wellington International</strong><br>
+                    Screenshots saved showing public transport options</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>🗺️ Route Planning</h3>
+                    <p><strong>Method Run.jpg</strong><br>
+                    Hand-annotated map with "Home" marked near Eastbourne</p>
+                </div>
+            </div>
+            <p style="margin-top: 30px; font-size: 1.3em;">Digital forensics revealed the <span class="highlight">entire operational geography</span> - even better than traditional surveillance</p>
+        </div>
+
+        <!-- Slide 9: Communication Analysis -->
+        <div class="slide">
+            <h2>Encrypted Communications Decoded</h2>
+            <div class="code-block">
+Discord Draft Messages (000006.log):
+
+"New supplier eh? Definitely Interested! Can I get 10 keys of it delivered to Wellington"
+
+"Good Thinking, I already know how. Heard of steganography?"
+
+"Good. Meet at the Eastbourne library and if we miss each other come to 666 Rewera Avenue, Petone."
+            </div>
+            <div class="evidence-grid" style="margin-top: 30px;">
+                <div class="evidence-card">
+                    <h3>ProtonMail Evidence</h3>
+                    <p>Username: crayfish1980@protonmail.com<br>
+                    Password hint: "### P=N" secret secret ###</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>Technical Sophistication</h3>
+                    <p>End-to-end encryption awareness, steganography discussion, operational security protocols</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: Lessons for Investigators -->
+        <div class="slide">
+            <h2>Investigative Lessons</h2>
+            <ul style="font-size: 1.2em;">
+                <li><strong>Metadata Survives Everything:</strong> ShellBags, USB logs, and registry artifacts persist even after aggressive wiping</li>
+                <li><strong>Tools Leave Traces:</strong> Anti-forensic software creates its own digital footprint</li>
+                <li><strong>Human Error Defeats Technology:</strong> Sophisticated encryption broken by poor password management</li>
+                <li><strong>Timeline Analysis is Critical:</strong> Correlating activities across multiple data sources reveals intent</li>
+                <li><strong>Unallocated Space is Golden:</strong> Deleted files often contain the most incriminating evidence</li>
+                <li><strong>Cache Files are Treasure:</strong> Applications store more than users realize</li>
+            </ul>
+            <div class="demo-section" style="margin-top: 30px;">
+                <h3>The Paradox</h3>
+                <p>The more sophisticated the anti-forensic techniques, the more they <span class="highlight">reveal about criminal intent and technical capability</span></p>
+            </div>
+        </div>
+
+        <!-- Slide 11: Tools and Techniques Demo -->
+        <div class="slide">
+            <h2>Tools That Made the Difference</h2>
+            <div class="evidence-grid">
+                <div class="evidence-card">
+                    <h3>🔍 Autopsy 4.22.1</h3>
+                    <p>Open-source digital forensics platform - keyword search across entire device, timeline analysis, artifact recovery</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>🗂️ ShellBag Analysis</h3>
+                    <p>Windows Explorer history revealed external drive usage patterns during destruction events</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>🔐 Steganography Tools</h3>
+                    <p>Using suspect's own Image Steganography software to decrypt hidden evidence</p>
+                </div>
+                <div class="evidence-card">
+                    <h3>⏰ Timeline Correlation</h3>
+                    <p>Cross-referencing multiple artifact timestamps to establish criminal intent</p>
+                </div>
+            </div>
+            <div class="interactive-element" onclick="toggleToolDemo()">
+                <h3>🛠️ Click for Practical Tool Recommendations</h3>
+                <div id="toolDemo" style="display: none;">
+                    <p><strong>Essential Free Tools:</strong> Autopsy, SANS SIFT, Volatility Framework</p>
+                    <p><strong>Key Techniques:</strong> Keyword searching, timeline analysis, unallocated space carving</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 12: Call to Action -->
+        <div class="slide">
+            <h2>The Future of Digital Forensics</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
+                <div>
+                    <h3>Challenges Ahead</h3>
+                    <ul>
+                        <li>Criminals are learning from forensic publications</li>
+                        <li>Anti-forensic tools are becoming mainstream</li>
+                        <li>Cloud storage complicates evidence acquisition</li>
+                        <li>Encryption is getting stronger</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Our Response</h3>
+                    <ul>
+                        <li>Better metadata analysis techniques</li>
+                        <li>Improved timeline correlation methods</li>
+                        <li>Community knowledge sharing (like BSides!)</li>
+                        <li>Continuous tool development</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="demo-section" style="margin-top: 40px;">
+                <h2>Let's Discuss!</h2>
+                <p style="font-size: 1.4em;">What anti-forensic techniques have you encountered? How do we stay ahead of the curve?</p>
+                <p style="margin-top: 20px; color: #00ccff;">Carla Vieira | University of the Sunshine Coast | SEC705 Digital Forensics</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="navigation">
+        <button class="nav-btn" onclick="previousSlide()">◀ Previous</button>
+        <button class="nav-btn" onclick="nextSlide()">Next ▶</button>
+    </div>
+
+    <script>
+        let currentSlideIndex = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        
+        document.getElementById('totalSlides').textContent = totalSlides;
+
+        function showSlide(index) {
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[index].classList.add('active');
+            document.getElementById('currentSlide').textContent = index + 1;
+        }
+
+        function nextSlide() {
+            currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
+            showSlide(currentSlideIndex);
+        }
+
+        function previousSlide() {
+            currentSlideIndex = (currentSlideIndex - 1 + totalSlides) % totalSlides;
+            showSlide(currentSlideIndex);
+        }
+
+        function toggleStegoDemo() {
+            const demo = document.getElementById('stegoDemo');
+            demo.style.display = demo.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function toggleToolDemo() {
+            const demo = document.getElementById('toolDemo');
+            demo.style.display = demo.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'ArrowRight' || event.key === ' ') {
+                nextSlide();
+            } else if (event.key === 'ArrowLeft') {
+                previousSlide();
+            }
+        });
+
+        // Matrix background effect
+        function createMatrixEffect() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            document.getElementById('matrixBg').appendChild(canvas);
+
+            const binary = '01';
+            const fontSize = 14;
+            const columns = canvas.width / fontSize;
+            const drops = [];
+
+            for (let x = 0; x < columns; x++) {
+                drops[x] = 1;
+            }
+
+            function draw() {
+                ctx.fillStyle = 'rgba(15, 15, 35, 0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#00ff88';
+                ctx.font = fontSize + 'px monospace';
+
+                for (let i = 0; i < drops.length; i++) {
+                    const text = binary[Math.floor(Math.random() * binary.length)];
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+
+            setInterval(draw, 35);
+        }
+
+        // Initialize matrix effect
+        createMatrixEffect();
+    </script>
+</body>
+</html>
